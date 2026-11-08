@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "@mediapipe/tasks-audio": "^1.2.2",
+    "@mediapipe/tasks-decision": "^1.2.2",
+    "@mediapipe/tasks-retrieval": "^1.2.2",
+    "@mediapipe/tasks-text": "^1.2.2",
+    "@mediapipe/tasks-vision": "^1.2.2"
+  }
+}
