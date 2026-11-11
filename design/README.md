@@ -59,3 +59,13 @@ Topics include:
 ## 5. Design History
 
 The original design assets are preserved in the `originals/` directory. Future design revisions will be documented separately to maintain a record of the project's development.
+
+Credits and Design Attribution:
+
+The initial UI concepts, interface states, interaction-flow diagram and alternative layout concepts were created by the project's design contributor(Yuxing Yao).
+
+The original design assets are preserved in the originals/ directory.
+
+The design/README.md gallery and repository organisation were prepared separately to improve navigation, documentation and presentation of the design work.
+
+The original concepts remain available for reference as the project progresses.
