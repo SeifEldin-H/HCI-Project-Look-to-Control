@@ -22,7 +22,7 @@ These points were used to guide the next version of the design.
 
 ### Updated state 1
 
-![Updated state 1](originals/Update%20state%201.png)
+![Updated state 1](https://github.com/SeifEldin-H/HCI-Project-Look-to-Control/blob/main/design/originals/Updated%20state%201.png)
 
 An eye-tracking status indicator has been added to show whether the camera tracking feature is active.
 
@@ -32,7 +32,7 @@ These changes are designed to improve accessibility, privacy, and user control.
 
 ### Updated state 2
 
-![Updated state 2](originals/Update%20state%202.png)
+![Updated state 2](https://github.com/SeifEldin-H/HCI-Project-Look-to-Control/blob/main/design/originals/Updated%20state%202.png)
 
 The confirmation instructions have been clarified so that users know exactly what to do after selecting a “light” device.
 
@@ -42,7 +42,7 @@ This change is intended to reduce confusion and prevent accidental activation.
 
 ### Update state 4
 
-![Updated state 4](originals/Update%20state%204.png)
+![Updated state 4](https://github.com/SeifEldin-H/HCI-Project-Look-to-Control/blob/main/design/originals/Updated%20state%204.png)
 
 Since unlocking a door is a high-risk operation, we have updated the door lock confirmation instructions.
 
