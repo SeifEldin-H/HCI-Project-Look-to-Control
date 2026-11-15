@@ -1,7 +1,19 @@
-"""Blink detection with personal 5-point gaze calibration.
+# this file was made with chatgpt
+"""
+Blink Detection and Gaze Tracking
+Python translation of the supplied HTML + JavaScript application.
 
-Install: pip install opencv-python mediapipe pillow numpy
-Run:     python blink_detection_calibrated.py
+
+Run:
+    python3 -m venv test_venv
+    source test_venv/bin/activate  # Linux/macOS
+    test_venv\Scripts\activate  # Windows
+    pip install opencv-python mediapipe pillow numpy
+    python3 blink_detection.py
+
+
+On first run, the MediaPipe face-landmarker model is downloaded automatically.
+A working webcam and a graphical desktop session are required.
 
 The gaze dot is mapped to positions within the webcam preview. Click
 'Calibrate gaze' and follow the five targets while keeping your head fairly still.
