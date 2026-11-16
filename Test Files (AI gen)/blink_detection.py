@@ -39,7 +39,7 @@ MODEL_URL = (
 )
 MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "face_landmarker.task")
 PREVIEW_W, PREVIEW_H = 640, 480
-TARGETS = [(x, y) for y in (0.10, 0.50, 0.90) for x in (0.10, 0.50, 0.90)]
+TARGETS = [(x, y) for y in (0.08, 0.50, 0.92) for x in (0.08, 0.50, 0.92)]
 SETTLE_SECONDS = 1.0
 SAMPLE_SECONDS = 1.8
 
@@ -74,6 +74,14 @@ class BlinkDetectionApp:
         self.gaze_model_x = None
         self.gaze_model_y = None
         self.last_gaze = None
+        self.app_x = 0
+        self.app_y = 0
+        self.app_w = 800
+        self.app_h = 600
+        self.calibration_window = None
+        self.calibration_canvas = None
+        self.gaze_window = None
+        self.gaze_canvas = None
 
         tk.Label(root, text="Blink Detection", font=("Arial", 24, "bold"),
                  bg="#171717", fg="white").pack(pady=(16, 8))
@@ -170,6 +178,11 @@ class BlinkDetectionApp:
     def start_calibration(self):
         if not self.running:
             return
+        self.root.update_idletasks()
+        self.app_x = self.root.winfo_rootx()
+        self.app_y = self.root.winfo_rooty()
+        self.app_w = max(400, self.root.winfo_width())
+        self.app_h = max(300, self.root.winfo_height())
         self.calibrating = True
         self.calibration_index = 0
         self.calibration_phase_start = time.perf_counter()
@@ -178,7 +191,86 @@ class BlinkDetectionApp:
         self.calibration_targets = []
         self.gaze_model_x = None
         self.gaze_model_y = None
-        self.set_status("Calibration: look at the target in the video and keep your head still.")
+        self.last_gaze = None
+        self.hide_gaze_marker()
+
+        # Display calibration targets across the application window.
+        self.calibration_window = tk.Toplevel(self.root)
+        self.calibration_window.configure(bg="#101010")
+        self.calibration_window.overrideredirect(True)
+        self.calibration_window.attributes("-topmost", True)
+        self.calibration_window.geometry(
+            f"{self.app_w}x{self.app_h}+{self.app_x}+{self.app_y}"
+        )
+        self.calibration_canvas = tk.Canvas(
+            self.calibration_window, bg="#101010", highlightthickness=0, cursor="none"
+        )
+        self.calibration_canvas.pack(fill=tk.BOTH, expand=True)
+        self.calibration_window.bind("<Escape>", self.cancel_calibration)
+        self.draw_calibration_target()
+        self.set_status("Application-window calibration started. Follow the targets inside this window. Press Esc to cancel.")
+
+    def draw_calibration_target(self):
+        if self.calibration_canvas is None:
+            return
+        canvas = self.calibration_canvas
+        canvas.delete("all")
+        nx, ny = TARGETS[self.calibration_index]
+        x, y = int(nx * self.app_w), int(ny * self.app_h)
+        canvas.create_text(self.app_w // 2, 38,
+            text=f"APPLICATION WINDOW CALIBRATION - Point {self.calibration_index + 1}/{len(TARGETS)}",
+            fill="white", font=("Arial", 18, "bold"))
+        canvas.create_text(self.app_w // 2, 72,
+            text="Look at the yellow target inside this application window",
+            fill="#cccccc", font=("Arial", 13))
+        canvas.create_oval(x-22, y-22, x+22, y+22,
+            fill="#ffff00", outline="white", width=3)
+        canvas.create_oval(x-5, y-5, x+5, y+5, fill="#111111", outline="#111111")
+        canvas.create_text(self.app_w // 2, self.app_h - 34,
+            text="Targets cover this application window - press Esc to cancel",
+            fill="#aaaaaa", font=("Arial", 11))
+
+    def cancel_calibration(self, _event=None):
+        self.calibrating = False
+        if self.calibration_window is not None:
+            self.calibration_window.destroy()
+            self.calibration_window = None
+            self.calibration_canvas = None
+        self.set_status("Calibration cancelled.")
+
+    def show_gaze_marker(self, x, y):
+        # A separate topmost marker positioned in full-screen coordinates.
+        if self.gaze_window is None:
+            self.gaze_window = tk.Toplevel(self.root)
+            self.gaze_window.overrideredirect(True)
+            self.gaze_window.attributes("-topmost", True)
+            self.gaze_window.attributes("-alpha", 0.88)
+            self.gaze_window.configure(bg="#ff00ff")
+            try:
+                self.gaze_window.attributes("-transparentcolor", "#ff00ff")
+            except tk.TclError:
+                pass
+            self.gaze_canvas = tk.Canvas(self.gaze_window, width=30, height=30,
+                bg="#ff00ff", highlightthickness=0)
+            self.gaze_canvas.pack()
+            self.gaze_canvas.create_oval(4, 4, 26, 26,
+                fill="#00ffff", outline="white", width=2)
+        # Follow the app if the user moves or resizes its window.
+        self.root.update_idletasks()
+        app_x = self.root.winfo_rootx()
+        app_y = self.root.winfo_rooty()
+        app_w = max(1, self.root.winfo_width())
+        app_h = max(1, self.root.winfo_height())
+        px = app_x + max(0, min(app_w - 30, int(x * app_w) - 15))
+        py = app_y + max(0, min(app_h - 30, int(y * app_h) - 15))
+        self.gaze_window.geometry(f"30x30+{px}+{py}")
+        self.gaze_window.lift()
+
+    def hide_gaze_marker(self):
+        if self.gaze_window is not None:
+            self.gaze_window.destroy()
+            self.gaze_window = None
+            self.gaze_canvas = None
 
     def advance_calibration(self, features, now):
         if not self.calibrating:
@@ -206,9 +298,14 @@ class BlinkDetectionApp:
                 self.gaze_model_x = np.linalg.lstsq(X, Y[:, 0], rcond=None)[0]
                 self.gaze_model_y = np.linalg.lstsq(X, Y[:, 1], rcond=None)[0]
                 self.calibrating = False
-                self.set_status("Calibration complete! Look around the camera preview to test the gaze dot.")
+                if self.calibration_window is not None:
+                    self.calibration_window.destroy()
+                    self.calibration_window = None
+                    self.calibration_canvas = None
+                self.set_status("Application-window calibration complete! The gaze marker is active inside this window.")
             else:
-                self.set_status(f"Calibration point {self.calibration_index + 1}/{len(TARGETS)}: look at the next target.")
+                self.draw_calibration_target()
+                self.set_status(f"Screen calibration point {self.calibration_index + 1}/{len(TARGETS)}: look at the next target.")
 
     def predict_gaze(self, features):
         if features is None or self.gaze_model_x is None:
@@ -216,9 +313,9 @@ class BlinkDetectionApp:
         row = self.design_row(features)
         x = float(row @ self.gaze_model_x)
         y = float(row @ self.gaze_model_y)
-        # Keep the marker within the preview and damp small frame-to-frame jitter.
-        x = float(np.clip(x, 0.03, 0.97))
-        y = float(np.clip(y, 0.03, 0.97))
+        # Keep the marker within the application and damp frame-to-frame jitter.
+        x = float(np.clip(x, 0.01, 0.99))
+        y = float(np.clip(y, 0.01, 0.99))
         if self.last_gaze is not None:
             alpha = 0.28
             x = alpha*x + (1-alpha)*self.last_gaze[0]
@@ -273,21 +370,10 @@ class BlinkDetectionApp:
         display = cv2.flip(raw_frame, 1)
         display = cv2.resize(display, (PREVIEW_W, PREVIEW_H))
 
-        if self.calibrating:
-            tx, ty = TARGETS[self.calibration_index]
-            px, py = int(tx*PREVIEW_W), int(ty*PREVIEW_H)
-            cv2.circle(display, (px, py), 19, (0, 0, 0), -1)
-            cv2.circle(display, (px, py), 13, (0, 255, 255), -1)
-            cv2.circle(display, (px, py), 19, (255, 255, 255), 2)
-            elapsed = now - self.calibration_phase_start
-            instruction = "Hold your gaze" if elapsed >= SETTLE_SECONDS else "Look at the target"
-            cv2.putText(display, f"Calibration {self.calibration_index+1}/5 - {instruction}",
-                        (12, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.62, (255,255,255), 2, cv2.LINE_AA)
-        elif gaze is not None:
-            gx, gy = int(gaze[0]*PREVIEW_W), int(gaze[1]*PREVIEW_H)
-            cv2.circle(display, (gx, gy), 18, (0, 0, 0), 3)
-            cv2.circle(display, (gx, gy), 12, (0, 255, 255), -1)
-            cv2.circle(display, (gx, gy), 18, (255, 255, 255), 2)
+        if gaze is not None and not self.calibrating:
+            self.show_gaze_marker(*gaze)
+        elif self.calibrating:
+            self.hide_gaze_marker()
         elif result.face_landmarks and self.gaze_model_x is None:
             cv2.putText(display, "Click Calibrate gaze", (12, 30), cv2.FONT_HERSHEY_SIMPLEX,
                         0.7, (0,255,255), 2, cv2.LINE_AA)
@@ -295,19 +381,24 @@ class BlinkDetectionApp:
         if not result.face_landmarks:
             self.set_status("No face detected - move into the camera view.")
         elif self.calibrating:
-            self.set_status(f"Calibrating point {self.calibration_index+1}/5. Keep looking at the yellow target.")
+            self.set_status(f"Application calibration point {self.calibration_index+1}/{len(TARGETS)}. Keep looking at the yellow target.")
         elif self.gaze_model_x is None:
-            self.set_status("Face detected. Click 'Calibrate gaze' before testing screen gaze.")
+            self.set_status("Face detected. Click 'Calibrate gaze' to calibrate across this application window.")
         elif gaze is not None:
-            self.set_status("Calibrated gaze tracking active. The dot follows your estimated gaze in the preview.")
+            self.set_status("Calibrated gaze tracking active. The cyan marker follows your estimated gaze inside this application window.")
 
-        photo = ImageTk.PhotoImage(Image.fromarray(cv2.cvtColor(display, cv2.COLOR_BGR2RGB)))
-        self.video_label.configure(image=photo)
-        self.video_label.image = photo
+        #photo = ImageTk.PhotoImage(Image.fromarray(cv2.cvtColor(display, cv2.COLOR_BGR2RGB)))
+        #self.video_label.configure(image=photo)
+        #self.video_label.image = photo
         self.root.after(15, self.update_frame)
 
     def close_resources(self):
         self.running = False
+        if self.calibration_window is not None:
+            self.calibration_window.destroy()
+            self.calibration_window = None
+            self.calibration_canvas = None
+        self.hide_gaze_marker()
         if self.cap is not None:
             self.cap.release()
             self.cap = None
